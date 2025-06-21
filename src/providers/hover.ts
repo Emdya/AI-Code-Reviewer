@@ -13,6 +13,7 @@ export class AiHoverProvider implements vscode.HoverProvider {
             ? this.diagnosticsProvider.getDiagnostics(document.uri)
             : vscode.languages.getDiagnostics(document.uri);
 
+
         const diagnostic = diagnostics.find(d => 
             d.source === 'AI Code Review' && d.range.contains(position)
         );

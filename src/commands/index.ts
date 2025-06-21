@@ -1,3 +1,4 @@
+import { AiCodeIssue } from '../services/aiService';
 import * as vscode from 'vscode';
 import { AiService } from '../services/aiService';
 import { AiDiagnosticsProvider } from '../providers/diagnostics';

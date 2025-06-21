@@ -2,19 +2,19 @@ import { AiService, AiCodeIssue } from './aiService';
 
 export class LocalAiService implements AiService {
     private commonIssues = [
-        {
-            pattern: /eval\(.*\)/,
-            message: "Potential security vulnerability: using eval()",
-            category: "security",
-            severity: "error"
-        },
-        {
-            pattern: /for\s*\(.*;\s*;\s*\)/,
-            message: "Infinite loop detected",
-            category: "logic",
-            severity: "error"
-        }
-    ];
+    {
+        pattern: /eval\(.*\)/,
+        message: "Potential security vulnerability: using eval()",
+        category: "security",
+        severity: "error" as const // or "warning" or "info"
+    },
+    {
+        pattern: /for\s*\(.*;\s*;\s*\)/,
+        message: "Infinite loop detected",
+        category: "logic",
+        severity: "error" as const
+    }
+];
 
     async analyze(code: string): Promise<AiCodeIssue[]> {
         const issues: AiCodeIssue[] = [];
