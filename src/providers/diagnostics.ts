@@ -1,10 +1,15 @@
 import * as vscode from 'vscode';
-import { AiService, AiCodeIssue } from '../services/aiService';
+import { LocalAiService } from '../services/localAi';
+import { FeedbackService } from '../services/feedbackService';
+import { AiCodeIssue } from '../services/aiService';
 
 export class AiDiagnosticsProvider implements vscode.Disposable {
     private collection: vscode.DiagnosticCollection;
     
-    constructor(private aiService: AiService) {
+    constructor(
+        private aiService: LocalAiService,
+        private feedbackService?: FeedbackService  // Make this optional
+    ) {
         this.collection = vscode.languages.createDiagnosticCollection('ai-code-review');
     }
 

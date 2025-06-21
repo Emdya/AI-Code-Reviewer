@@ -35,7 +35,12 @@
       {
         "command": "ai-code-review.optimize",
         "title": "Optimize AI-Generated Code"
-      }
+      },
+      {
+            "command": "ai-code-review.showDashboard",
+            "title": "Show Feedback Dashboard",
+            "category": "AI Code Review"
+        }
     ],
     "menus": {
       "editor/context": [
@@ -68,4 +73,5 @@
     "eslint": "^8.0.0",
     "typescript": "^4.8.4"
   }
+  
 }
