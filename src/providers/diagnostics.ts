@@ -20,13 +20,15 @@ export class AiDiagnosticsProvider implements vscode.Disposable {
 
     async refresh(document: vscode.TextDocument) {
         try {
-            const issues = await this.aiService.analyze(document.getText());
+            const result = await this.aiService.analyze(document.getText());
+            const issues: AiCodeIssue[] = Array.isArray(result.issues) ? result.issues : [];
             const diagnostics = this.createDiagnostics(issues, document);
             this.collection.set(document.uri, diagnostics);
         } catch (error) {
             vscode.window.showErrorMessage(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
+
 
     private createDiagnostics(issues: AiCodeIssue[], document: vscode.TextDocument): vscode.Diagnostic[] {
         return issues.map(issue => {

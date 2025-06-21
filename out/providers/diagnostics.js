@@ -47,7 +47,8 @@ class AiDiagnosticsProvider {
     refresh(document) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const issues = yield this.aiService.analyze(document.getText());
+                const result = yield this.aiService.analyze(document.getText());
+                const issues = Array.isArray(result.issues) ? result.issues : [];
                 const diagnostics = this.createDiagnostics(issues, document);
                 this.collection.set(document.uri, diagnostics);
             }

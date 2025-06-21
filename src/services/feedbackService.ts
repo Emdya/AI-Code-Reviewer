@@ -1,123 +1,111 @@
 import * as vscode from 'vscode';
+import fetch from 'node-fetch';
 
-interface DiagnosticInfo {
-    code?: string | number;
-    message: string;
-    range?: {
-        start: vscode.Position;
-        end: vscode.Position;
+
+interface FeedbackData {
+    diagnostic: {
+        code?: string | number;
+        message: string;
     };
-}
-
-export interface FeedbackRecord {
-    timestamp: string;
-    diagnostic: DiagnosticInfo;
     vote: number;
-    fileExtension: string;
-    userId: string;
-    sessionId: string;
 }
 
 export class FeedbackService {
-    private static SESSION_ID = Date.now().toString();
-    private static STORAGE_KEY = 'ai-code-review-feedbacks';
+    private apiBaseUrl: string;
+    private context: vscode.ExtensionContext; // Properly declare the property
 
-    constructor(private context: vscode.ExtensionContext) {}
-
-    public async logFeedback(data: {
-        diagnostic: DiagnosticInfo;
-        vote: number;
-    }): Promise<void> {
-        try {
-            const userId = await this.getUserId();
-            const record: FeedbackRecord = {
-                timestamp: new Date().toISOString(),
-                diagnostic: {
-                    code: data.diagnostic.code,
-                    message: data.diagnostic.message,
-                    range: data.diagnostic.range
-                },
-                vote: data.vote,
-                fileExtension: vscode.window.activeTextEditor?.document.languageId || 'unknown',
-                userId,
-                sessionId: FeedbackService.SESSION_ID
-            };
-
-            const currentFeedbacks = this.context.globalState.get<FeedbackRecord[]>(
-                FeedbackService.STORAGE_KEY,
-                []
-            );
-
-            await this.context.globalState.update(
-                FeedbackService.STORAGE_KEY,
-                [...currentFeedbacks, record]
-            );
-        } catch (error) {
-            console.error('Failed to log feedback:', error);
-        }
+    constructor(context: vscode.ExtensionContext) {
+        this.context = context; // Store the context properly
+        const config = vscode.workspace.getConfiguration('aiCodeReviewer');
+        this.apiBaseUrl = config.get<string>('apiUrl', 'http://localhost:8000/api/v1');
+        this.verifyConnection();
     }
 
-    public async getFeedbackStats(): Promise<{
-        total: number;
-        positive: number;
-        negative: number;
-        last30Days: {
-            total: number;
-            positive: number;
-            negative: number;
-        };
-    }> {
-        const feedbacks = this.context.globalState.get<FeedbackRecord[]>(
-            FeedbackService.STORAGE_KEY,
-            []
-        );
-
-        const now = Date.now();
-        const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-
-        return {
-            total: feedbacks.length,
-            positive: feedbacks.filter(f => f.vote > 0).length,
-            negative: feedbacks.filter(f => f.vote < 0).length,
-            last30Days: {
-                total: feedbacks.filter(f => 
-                    new Date(f.timestamp).getTime() > thirtyDaysAgo
-                ).length,
-                positive: feedbacks.filter(f => 
-                    f.vote > 0 && new Date(f.timestamp).getTime() > thirtyDaysAgo
-                ).length,
-                negative: feedbacks.filter(f => 
-                    f.vote < 0 && new Date(f.timestamp).getTime() > thirtyDaysAgo
-                ).length
+    private async verifyConnection(): Promise<void> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/health`);
+            if (!response.ok) {
+                vscode.window.showWarningMessage('Backend connection failed - using local feedback storage');
             }
-        };
-    }
-
-    public async getRecentFeedback(limit = 10): Promise<FeedbackRecord[]> {
-        const feedbacks = this.context.globalState.get<FeedbackRecord[]>(
-            FeedbackService.STORAGE_KEY,
-            []
-        );
-
-        return feedbacks
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-            .slice(0, limit);
-    }
-
-    public async clearAllFeedback(): Promise<void> {
-        await this.context.globalState.update(FeedbackService.STORAGE_KEY, []);
-    }
-
-    private async getUserId(): Promise<string> {
-        try {
-            const session = await vscode.authentication.getSession(
-                'github',
-                ['user:email'],
-                { createIfNone: false }
-            );
-            return session?.account.label || 'anonymous';
-        } catch {
-            return 'anonymous';
+        } catch (error) {
+            console.error('Backend connection check failed:', error);
         }
+    }
+
+    public async logFeedback(data: FeedbackData): Promise<void> {
+        try {
+            await this.sendToBackend(data);
+        } catch (error) {
+            console.error('Failed to send feedback to backend:', error);
+            this.storeLocally(data);
+        }
+    }
+
+    private async sendToBackend(data: FeedbackData): Promise<void> {
+        const response = await fetch(`${this.apiBaseUrl}/feedback`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(process.env.API_KEY ? { 'X-API-Key': process.env.API_KEY } : {})
+            },
+            body: JSON.stringify({
+                analysis_id: data.diagnostic.code,
+                vote: data.vote,
+                comment: data.diagnostic.message,
+                source: 'vscode-extension'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+    }
+
+    private storeLocally(data: FeedbackData): void {
+        const existingFeedback = this.context.globalState.get<FeedbackData[]>('localFeedback') || [];
+        const feedbackWithMetadata = {
+            ...data,
+            timestamp: new Date().toISOString()
+        };
+
+        this.context.globalState.update('localFeedback', [...existingFeedback, feedbackWithMetadata])
+            .then(() => {
+                console.log('Feedback stored locally');
+            }, error => {
+                console.error('Local feedback storage failed:', error);
+            });
+    }
+
+    public async syncLocalFeedback(): Promise<void> {
+        const localFeedback = this.context.globalState.get<FeedbackData[]>('localFeedback') || [];
+        
+        if (localFeedback.length > 0) {
+            try {
+                await Promise.all(localFeedback.map(feedback => this.sendToBackend(feedback)));
+                await this.context.globalState.update('localFeedback', []);
+                console.log(`Successfully synced ${localFeedback.length} feedback items`);
+            } catch (error) {
+                console.error('Failed to sync local feedback:', error);
+            }
+        }
+    }
+    public async clearAllFeedback(): Promise<void> {
+    await this.context.globalState.update('localFeedback', []);
+    console.log('Cleared all locally stored feedback');
+    }
+
+    public async getFeedbackStats(): Promise<{ total: number; byVote: Record<number, number> }> {
+        const localFeedback = this.context.globalState.get<FeedbackData[]>('localFeedback') || [];
+        const byVote = localFeedback.reduce((acc, item) => {
+            acc[item.vote] = (acc[item.vote] || 0) + 1;
+            return acc;
+        }, {} as Record<number, number>);
+
+        return { total: localFeedback.length, byVote };
+    }
+
+    public async getRecentFeedback(): Promise<FeedbackData[]> {
+        const localFeedback = this.context.globalState.get<FeedbackData[]>('localFeedback') || [];
+        return localFeedback.slice().reverse(); // Show most recent first
     }
 }

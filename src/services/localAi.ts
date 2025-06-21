@@ -1,58 +1,76 @@
-import { AiService, AiCodeIssue } from './aiService';
+import * as vscode from 'vscode';
+const fetch = require('node-fetch');
 
-export class LocalAiService implements AiService {
-    private commonIssues = [
-    {
-        pattern: /eval\(.*\)/g,
-        message: "Potential security vulnerability: using eval()",
-        category: "security",
-        severity: "error" as const // or "warning" or "info"
-    },
-    {
-        pattern: /for\s*\(.*;\s*;\s*\)/g,
-        message: "Infinite loop detected",
-        category: "logic",
-        severity: "error" as const
+export class LocalAiService {
+    private apiBaseUrl: string;
+
+    constructor() {
+        this.apiBaseUrl = 'http://localhost:8000/api/v1'; // Update if hosted elsewhere
     }
-];
 
-    async analyze(code: string): Promise<AiCodeIssue[]> {
-        const issues: AiCodeIssue[] = [];
-
-        for (const { pattern, message, category, severity } of this.commonIssues) {
-            const matches = code.matchAll(pattern);
-            for (const match of matches) {
-                if (match.index === undefined) continue;
-                
-                issues.push({
-                    message,
-                    severity,
-                    category,
-                    range: [match.index, match.index + match[0].length]
-                });
-            }
+    async analyze(code: string): Promise<any> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/analyze`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code,
+                    language: vscode.window.activeTextEditor?.document.languageId || 'javascript'
+                })
+            });
+            return await response.json();
+        } catch (error) {
+            vscode.window.showErrorMessage('Failed to analyze code');
+            console.error('Analysis error:', error);
+            return { issues: [] }; // Fallback
         }
-
-        return issues;
-    }
-
-    async explain(issue: AiCodeIssue): Promise<string> {
-        const explanations: Record<string, string> = {
-            security: "This is a security concern because...",
-            logic: "This might cause logical issues because..."
-        };
-        return explanations[issue.category] || "This is a common issue in AI-generated code.";
-    }
-
-    async fix(issue: AiCodeIssue, code: string): Promise<string> {
-        const fixes: Record<string, string> = {
-            security: "// Fixed: Using safer alternative\ndoSafeThing()",
-            logic: "// Fixed: Proper loop condition\nfor (let i = 0; i < limit; i++)"
-        };
-        return fixes[issue.category] || code.slice(issue.range[0], issue.range[1]);
     }
 
     async optimize(code: string): Promise<string> {
-        return `// Optimized version\n${code.replace(/\s+/g, ' ').trim()}`;
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/optimize`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code,
+                    language: vscode.window.activeTextEditor?.document.languageId || 'javascript'
+                })
+            });
+            const data = await response.json() as { optimized_code?: string };
+            return data.optimized_code || code;
+        } catch (error) {
+            vscode.window.showErrorMessage('Failed to optimize code');
+            return code;
+        }
+    }
+
+    async explain(issue: any): Promise<string> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/explain`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ issue })
+            });
+            const data = await response.json();
+            return data.explanation || "No explanation provided.";
+        } catch (error) {
+            vscode.window.showErrorMessage('Failed to explain issue');
+            return "Unable to retrieve explanation.";
+        }
+    }
+
+    async fix(issue: any, code: string): Promise<string> {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/fix`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ issue, code })
+            });
+            const data = await response.json();
+            return data.fixed_code || code;
+        } catch (error) {
+            vscode.window.showErrorMessage('Failed to fix issue');
+            return code;
+        }
     }
 }
