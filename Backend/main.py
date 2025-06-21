@@ -1,25 +1,28 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from routes import endpoints
-import uvicorn
+from services.code_analyzer import CodeAnalyzer
 
-app = FastAPI(
-    title="AI Code Reviewer API",
-    description="Backend for analyzing and improving AI-generated code",
-    version="0.1.0"
-)
+# Initialize the analyzer globally
+analyzer = CodeAnalyzer()
 
-# CORS configuration
+app = FastAPI()
+
+# Dependency function to get the analyzer instance
+def get_analyzer():
+    return analyzer
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routes
-app.include_router(endpoints.router, prefix="/api/v1")
+# Include routes with dependency injection
+from routes import endpoints
+app.include_router(endpoints.router)
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
