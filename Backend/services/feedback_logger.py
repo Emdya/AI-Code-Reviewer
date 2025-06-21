@@ -1,10 +1,11 @@
 from datetime import datetime
 import json
 import os
+from typing import Optional
 
 FEEDBACK_FILE = "feedback_logs.json"
 
-def log_feedback(analysis_id: str, vote: int, comment: str = None):
+def log_feedback(analysis_id: str, vote: int, comment: Optional[str] = None):
     """Log user feedback to a JSON file"""
     feedback = {
         "timestamp": datetime.utcnow().isoformat(),

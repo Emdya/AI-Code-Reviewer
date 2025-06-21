@@ -13,62 +13,77 @@
   ],
   "activationEvents": [
     "onCommand:ai-code-review.analyze",
+    "onCommand:ai-code-review.detectAI",
     "onLanguage:javascript",
     "onLanguage:typescript",
     "onLanguage:python"
   ],
   "main": "./out/src/extension.js",
   "contributes": {
-  "configuration": {
-    "title": "AI Code Reviewer",
-    "properties": {
-      "aiCodeReviewer.apiUrl": {
-        "type": "string",
-        "default": "http://localhost:8000/api/v1",
-        "description": "Backend API base URL"
+    "configuration": {
+      "title": "AI Code Reviewer",
+      "properties": {
+        "aiCodeReviewer.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:8000/api/v1",
+          "description": "Backend API base URL"
+        }
       }
-    }
-  },
-  "commands": [
-    {
-      "command": "ai-code-review.analyze",
-      "title": "Analyze AI-Generated Code"
     },
-    {
-      "command": "ai-code-review.explain",
-      "title": "Explain AI Code Issue"
-    },
-    {
-      "command": "ai-code-review.fix",
-      "title": "Fix AI Code Issue"
-    },
-    {
-      "command": "ai-code-review.optimize",
-      "title": "Optimize AI-Generated Code"
-    },
-    {
-      "command": "ai-code-review.showDashboard",
-      "title": "Show Feedback Dashboard",
-      "category": "AI Code Review"
-    }
-  ],
-  "menus": {
-    "editor/context": [
+    "commands": [
       {
         "command": "ai-code-review.analyze",
-        "when": "editorHasSelection",
-        "group": "ai-code-review@1"
+        "title": "Analyze AI-Generated Code"
+      },
+      {
+        "command": "ai-code-review.detectAI",
+        "title": "Detect AI-Generated Code"
+      },
+      {
+        "command": "ai-code-review.explain",
+        "title": "Explain AI Code Issue"
+      },
+      {
+        "command": "ai-code-review.fix",
+        "title": "Fix AI Code Issue"
+      },
+      {
+        "command": "ai-code-review.optimize",
+        "title": "Optimize AI-Generated Code"
+      },
+      {
+        "command": "ai-code-review.showDashboard",
+        "title": "Show Feedback Dashboard",
+        "category": "AI Code Review"
       }
     ],
-    "editor/title/context": [
-      {
-        "command": "ai-code-review.analyze",
-        "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python",
-        "group": "ai-code-review@1"
-      }
-    ]
-  }
-},
+    "menus": {
+      "editor/context": [
+        {
+          "command": "ai-code-review.analyze",
+          "when": "editorHasSelection",
+          "group": "ai-code-review@1"
+        },
+        {
+          "command": "ai-code-review.detectAI",
+          "when": "editorHasSelection",
+          "group": "ai-code-review@2"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "ai-code-review.analyze",
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python",
+          "group": "ai-code-review@1"
+        },
+        {
+          "command": "ai-code-review.detectAI",
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python",
+          "group": "ai-code-review@2"
+        }
+      ]
+    }
+  },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
@@ -78,10 +93,13 @@
     "lint": "eslint src --ext .ts"
   },
   "devDependencies": {
-    "@types/vscode": "^1.75.0",
     "@types/node": "16.x",
+    "@types/vscode": "^1.75.0",
     "eslint": "^8.0.0",
     "typescript": "^4.8.4"
+  },
+  "dependencies": {
+    "@types/node-fetch": "^2.6.12",
+    "node-fetch": "^3.3.2"
   }
-  
 }

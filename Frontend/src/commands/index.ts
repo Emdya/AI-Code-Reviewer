@@ -25,7 +25,7 @@ export function registerCommands(
     ];
 }
 
-async function handleAnalyzeCommand(diagnosticsProvider: AiDiagnosticsProvider) {
+async function analyzeCode(diagnosticsProvider: AiDiagnosticsProvider) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
         vscode.window.showWarningMessage('No active editor found');
@@ -34,7 +34,7 @@ async function handleAnalyzeCommand(diagnosticsProvider: AiDiagnosticsProvider) 
     await diagnosticsProvider.refresh(editor.document);
 }
 
-async function handleExplainCommand(aiService: AiService, diagnostic: vscode.Diagnostic) {
+async function explainIssue(aiService: AiService, diagnostic: vscode.Diagnostic) {
     const issue = convertDiagnosticToIssue(diagnostic);
     const explanation = await aiService.explain(issue);
     
@@ -48,7 +48,7 @@ async function handleExplainCommand(aiService: AiService, diagnostic: vscode.Dia
     panel.webview.html = getWebviewContent(explanation, diagnostic.message);
 }
 
-async function handleFixCommand(aiService: AiService, diagnostic: vscode.Diagnostic) {
+async function fixIssue(aiService: AiService, diagnostic: vscode.Diagnostic) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
 
@@ -61,7 +61,7 @@ async function handleFixCommand(aiService: AiService, diagnostic: vscode.Diagnos
     });
 }
 
-async function handleOptimizeCommand(aiService: AiService, diagnostic: vscode.Diagnostic) {
+async function optimizeCode(aiService: AiService, diagnostic: vscode.Diagnostic) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
 
@@ -98,20 +98,5 @@ function getWebviewContent(explanation: string, title: string): string {
         <p>${explanation}</p>
     </body>
     </html>`;
-}
-
-function analyzeCode(diagnosticsProvider: AiDiagnosticsProvider): any {
-    throw new Error('Function not implemented.');
-}
-function explainIssue(aiService: LocalAiService, diagnostic: vscode.Diagnostic): any {
-    throw new Error('Function not implemented.');
-}
-
-function fixIssue(aiService: LocalAiService, diagnostic: vscode.Diagnostic): any {
-    throw new Error('Function not implemented.');
-}
-
-function optimizeCode(aiService: LocalAiService, diagnostic: vscode.Diagnostic): any {
-    throw new Error('Function not implemented.');
 }
 

@@ -26,7 +26,7 @@ async def timeout_middleware(request: Request, call_next):
     start_time = time.time()
     try:
         if request.url.path in ["/api/v1/analyze", "/api/v1/optimize"]:
-            with asyncio.timeout(ANALYSIS_TIMEOUT):
+            async with asyncio.timeout(ANALYSIS_TIMEOUT):
                 return await call_next(request)
         return await call_next(request)
     except asyncio.TimeoutError:
@@ -51,8 +51,12 @@ async def health_check():
     return {"status": "healthy", "analyzer_ready": True}
 
 # Import and include routes
-from routes import endpoints
-app.include_router(endpoints.router, prefix="/api/v1")
+try:
+    from routes import endpoints
+    app.include_router(endpoints.router, prefix="/api/v1")
+except ImportError:
+    print("Warning: Could not import routes module. API endpoints may not be available.")
+    print("Make sure you're running the server using: python run_server.py")
 
 if __name__ == "__main__":
     import uvicorn

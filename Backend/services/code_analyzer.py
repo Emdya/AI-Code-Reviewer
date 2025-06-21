@@ -5,8 +5,9 @@ import ast
 import hashlib
 import autopep8
 import jsbeautifier
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import re
+from .ai_detector import AIGeneratedCodeDetector
 
 class CodeOptimizer:
     def __init__(self):
@@ -97,6 +98,7 @@ class CodeOptimizer:
 class CodeAnalyzer:
     def __init__(self):
         self.optimizer = CodeOptimizer()
+        self.ai_detector = AIGeneratedCodeDetector()
         self.supported_languages = {
             'python': self._analyze_python,
             'javascript': self._analyze_javascript,
@@ -104,7 +106,7 @@ class CodeAnalyzer:
             'cpp': self._analyze_cpp
         }
 
-    def analyze(self, code: str, language: str) -> Dict[str, Any]:
+    def analyze(self, code: str, language: str, edit_history: Optional[List[Dict]] = None) -> Dict[str, Any]:
         analysis_id = hashlib.md5(code.encode()).hexdigest()
         
         if language not in self.supported_languages:
@@ -119,13 +121,27 @@ class CodeAnalyzer:
             }
 
         try:
+            # Regular code analysis
             issues = self.supported_languages[language](code)
+            
+            # AI-generated code detection
+            ai_analysis = self.ai_detector.detect_ai_generated_code(code, language, edit_history or [])
+            
+            # Combine regular issues with AI-specific issues
+            all_issues = issues + ai_analysis.get("issues", [])
+            
             return {
                 "analysis_id": analysis_id,
-                "issues": issues,
-                "score": self._calculate_score(issues),
+                "issues": all_issues,
+                "score": self._calculate_score(all_issues),
                 "optimized_code": None,
-                "explanation": self._generate_explanation(issues)
+                "explanation": self._generate_explanation(all_issues),
+                "ai_detection": {
+                    "ai_detected": ai_analysis.get("ai_detected", False),
+                    "ai_confidence": ai_analysis.get("ai_confidence", 0.0),
+                    "suggestions": ai_analysis.get("suggestions", []),
+                    "fixes": ai_analysis.get("fixes", [])
+                }
             }
         except Exception as e:
             return {
@@ -140,6 +156,10 @@ class CodeAnalyzer:
 
     def optimize(self, code: str, language: str) -> Dict[str, Any]:
         return self.optimizer.optimize(code, language)
+
+    def detect_ai_generated(self, code: str, language: str, edit_history: Optional[List[Dict]] = None) -> Dict[str, Any]:
+        """Specific method for AI-generated code detection"""
+        return self.ai_detector.detect_ai_generated_code(code, language, edit_history or [])
 
     def _analyze_python(self, code: str) -> List[Dict]:
         results = []
