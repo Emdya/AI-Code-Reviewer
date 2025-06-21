@@ -1,0 +1,71 @@
+{
+  "name": "ai-code-reviewer",
+  "displayName": "AI Code Reviewer",
+  "description": "Identifies and fixes issues in AI-generated code",
+  "version": "0.1.0",
+  "publisher": "YourName",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Linters",
+    "Code Review"
+  ],
+  "activationEvents": [
+    "onCommand:ai-code-review.analyze",
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:python"
+  ],
+  "main": "./out/src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ai-code-review.analyze",
+        "title": "Analyze AI-Generated Code"
+      },
+      {
+        "command": "ai-code-review.explain",
+        "title": "Explain AI Code Issue"
+      },
+      {
+        "command": "ai-code-review.fix",
+        "title": "Fix AI Code Issue"
+      },
+      {
+        "command": "ai-code-review.optimize",
+        "title": "Optimize AI-Generated Code"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "ai-code-review.analyze",
+          "when": "editorHasSelection",
+          "group": "ai-code-review@1"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "ai-code-review.analyze",
+          "when": "resourceLangId == javascript || resourceLangId == typescript || resourceLangId == python",
+          "group": "ai-code-review@1"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "lint": "eslint src --ext .ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "16.x",
+    "eslint": "^8.0.0",
+    "typescript": "^4.8.4"
+  }
+}
