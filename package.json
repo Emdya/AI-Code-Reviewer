@@ -17,7 +17,7 @@
     "onLanguage:typescript",
     "onLanguage:python"
   ],
-  "main": "./out/src/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {

@@ -14,13 +14,13 @@ class LocalAiService {
     constructor() {
         this.commonIssues = [
             {
-                pattern: /eval\(.*\)/,
+                pattern: /eval\(.*\)/g,
                 message: "Potential security vulnerability: using eval()",
                 category: "security",
                 severity: "error" // or "warning" or "info"
             },
             {
-                pattern: /for\s*\(.*;\s*;\s*\)/,
+                pattern: /for\s*\(.*;\s*;\s*\)/g,
                 message: "Infinite loop detected",
                 category: "logic",
                 severity: "error"

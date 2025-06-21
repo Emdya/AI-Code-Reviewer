@@ -32,49 +32,27 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AiDiagnosticsProvider = void 0;
+exports.registerFeedbackCommand = void 0;
+// Updated feedback command handler
 const vscode = __importStar(require("vscode"));
-class AiDiagnosticsProvider {
-    constructor(aiService, feedbackService // Make this optional
-    ) {
-        this.aiService = aiService;
-        this.feedbackService = feedbackService;
-        this.collection = vscode.languages.createDiagnosticCollection('ai-code-review');
-    }
-    getDiagnostics(uri) {
-        return this.collection.get(uri) || [];
-    }
-    refresh(document) {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                const issues = yield this.aiService.analyze(document.getText());
-                const diagnostics = this.createDiagnostics(issues, document);
-                this.collection.set(document.uri, diagnostics);
-            }
-            catch (error) {
-                vscode.window.showErrorMessage(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-    }
-    createDiagnostics(issues, document) {
-        return issues.map(issue => {
-            const range = new vscode.Range(document.positionAt(issue.range[0]), document.positionAt(issue.range[1]));
-            const diagnostic = new vscode.Diagnostic(range, issue.message, this.getSeverity(issue.severity));
-            diagnostic.source = 'AI Code Review';
-            diagnostic.code = issue.category;
-            return diagnostic;
-        });
-    }
-    getSeverity(severity) {
-        switch (severity) {
-            case 'error': return vscode.DiagnosticSeverity.Error;
-            case 'warning': return vscode.DiagnosticSeverity.Warning;
-            default: return vscode.DiagnosticSeverity.Information;
+function registerFeedbackCommand(context, feedbackService) {
+    return vscode.commands.registerCommand('ai-code-review.feedback', (data) => __awaiter(this, void 0, void 0, function* () {
+        try {
+            yield feedbackService.logFeedback({
+                diagnostic: {
+                    code: data.diagnostic.code,
+                    message: data.diagnostic.message,
+                    range: data.diagnostic.range
+                },
+                vote: data.vote
+            });
+            vscode.window.showInformationMessage(`Thank you for your feedback! ${data.vote === 1 ? '👍' : '👎'}`);
         }
-    }
-    dispose() {
-        this.collection.dispose();
-    }
+        catch (error) {
+            console.error('Feedback error:', error);
+            vscode.window.showErrorMessage('Failed to save feedback. Please try again.');
+        }
+    }));
 }
-exports.AiDiagnosticsProvider = AiDiagnosticsProvider;
-//# sourceMappingURL=diagnostics.js.map
+exports.registerFeedbackCommand = registerFeedbackCommand;
+//# sourceMappingURL=feedback.js.map
