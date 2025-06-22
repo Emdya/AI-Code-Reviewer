@@ -1,26 +1,25 @@
 # Spurhacks
 
-This tool currently supports **Python** code analysis.  
-Future updates will include support for **C/C++**, **JavaScript**, and **TypeScript**.
+This tool currently supports **Python**, **C++**, **JavaScript** code analysis.  
 
 ## 🛠 How to Run
 
-1. Download both `analyze.py` and `test.py`.
+1. Download `analyze.py`.
 
 ### 🔍 To Analyze a File
 
 **Windows:**
 ```bash
-type test.py | python analyze.py python
+type {Insert File Here}|python analyze.py {Insert File Type Here}
 ```
 
 **macOS/Linux:**
 ```bash
-cat test.py | python analyze.py python
+cat {Insert File Here}|python analyze.py {Insert File Type Here}
 ```
 
 ### 🔎 To Analyze a Code Snippet
 
 ```bash
-echo "{place code here}" | python analyze.py python
+echo "{place code here}"|python analyze.py {Insert Code Type Here}
 ```
