@@ -1,16 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List, Dict
-from dependencies import get_analyzer  # ✅ Fixes circular import if run inside Backend/
+from dependencies import get_analyzer
 from services.code_analyzer import CodeAnalyzer
 from quantum_similarity import quantum_similarity
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
 
 router = APIRouter()
 
-# ------------------------------
-# ✅ Request/Response Models
-# ------------------------------
-
+# ================== Models ==================
 class CodeAnalysisRequest(BaseModel):
     code: str
     language: str
@@ -46,10 +45,15 @@ class QuantumInput(BaseModel):
 class QuantumSimilarityResponse(BaseModel):
     similarity: float
 
-# ------------------------------
-# ✅ Routes
-# ------------------------------
+class ExplainRequest(BaseModel):
+    selected: str
+    context: str
 
+# ================== Models Loaded Once ==================
+tokenizer = AutoTokenizer.from_pretrained("Salesforce/codet5-base")
+model = AutoModelForSeq2SeqLM.from_pretrained("Salesforce/codet5-base")
+
+# ================== Routes ==================
 @router.get("/health")
 async def versioned_health_check():
     return {"status": "healthy (v1)", "ok": True}
@@ -59,7 +63,6 @@ async def analyze_code(
     request: CodeAnalysisRequest,
     analyzer: CodeAnalyzer = Depends(get_analyzer)
 ):
-    """Analyze code for issues including AI-generated code detection"""
     try:
         result = analyzer.analyze(request.code, request.language, request.edit_history)
         return CodeAnalysisResponse(**result)
@@ -71,7 +74,6 @@ async def detect_ai_generated_code(
     request: AIDetectionRequest,
     analyzer: CodeAnalyzer = Depends(get_analyzer)
 ):
-    """Specifically detect AI-generated code patterns"""
     try:
         result = analyzer.detect_ai_generated(request.code, request.language, request.edit_history)
         return AIDetectionResponse(**result)
@@ -83,7 +85,6 @@ async def optimize_code(
     request: CodeAnalysisRequest,
     analyzer: CodeAnalyzer = Depends(get_analyzer)
 ):
-    """Optimize the given code"""
     try:
         result = analyzer.optimize(request.code, request.language)
         return CodeAnalysisResponse(
@@ -101,9 +102,19 @@ async def optimize_code(
 
 @router.post("/quantum-similarity", response_model=QuantumSimilarityResponse)
 async def run_quantum_similarity(data: QuantumInput):
-    """Compute quantum similarity score between two vectors"""
     try:
         score = quantum_similarity(data.vec1, data.vec2)
         return {"similarity": score}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Quantum similarity failed: {str(e)}")
+
+@router.post("/explain")
+async def explain_code(data: ExplainRequest):
+    try:
+        prompt = f"Explain what the following line does in context:\n\nLine: {data.selected}\n\nContext:\n{data.context}"
+        inputs = tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True)
+        outputs = model.generate(**inputs, max_length=128)
+        explanation = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        return {"explanation": explanation.strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM explanation failed: {str(e)}")

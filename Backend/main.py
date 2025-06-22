@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -5,12 +8,13 @@ from services.code_analyzer import CodeAnalyzer
 import asyncio
 import time
 
-# Initialize analyzer globally
+# ✅ Analyzer instance and DI function
 analyzer = CodeAnalyzer()
 
 def get_analyzer():
     return analyzer
 
+# ✅ Create FastAPI instance
 app = FastAPI(
     title="AI Code Reviewer API",
     version="1.0.0",
@@ -18,7 +22,7 @@ app = FastAPI(
     redoc_url=None
 )
 
-# Timeout configuration
+# ✅ Timeout Middleware for long tasks
 ANALYSIS_TIMEOUT = 30  # seconds
 
 @app.middleware("http")
@@ -35,32 +39,36 @@ async def timeout_middleware(request: Request, call_next):
             detail=f"Operation timed out after {ANALYSIS_TIMEOUT} seconds"
         )
     finally:
-        process_time = time.time() - start_time
-        print(f"Request completed in {process_time:.2f}s")
+        duration = time.time() - start_time
+        print(f"⏱️ Request to {request.url.path} completed in {duration:.2f} seconds")
 
-# CORS config
+# ✅ CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Or specify domains: ["http://localhost:3000"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Global health check (non-versioned)
+# ✅ Basic health check
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "analyzer_ready": True}
+    return {
+        "status": "healthy",
+        "analyzer_ready": True
+    }
 
-# ✅ Import versioned endpoints
+# ✅ Include API routes if available
 try:
-    from routes import endpoints 
+    from routes import endpoints
     app.include_router(endpoints.router, prefix="/api/v1")
-except ImportError:
-    print("Warning: Could not import routes module. API endpoints may not be available.")
-    print("Make sure you're running the server using: python run_server.py")
+except ImportError as e:
+    print("⚠️ Warning: Could not import routes module.")
+    print("   → Detail:", e)
+    print("   → Make sure to run from the project root: `python run_server.py`")
 
-# Entry point
+# ✅ CLI Entry Point (for python main.py)
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

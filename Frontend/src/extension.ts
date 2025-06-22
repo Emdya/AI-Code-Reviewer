@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import fetch from 'node-fetch';
 import { AiDiagnosticsProvider } from './providers/diagnostics';
 import { AiCodeActionProvider } from './providers/codeActions';
 import { AiHoverProvider } from './providers/hover';
@@ -8,6 +9,14 @@ import { registerCommands } from './commands';
 import { FeedbackService } from './services/feedbackService';
 import { registerFeedbackCommand } from './commands/feedback';
 import { FeedbackDashboard } from './webviews/dashboard';
+
+interface ExplanationResponse {
+    explanation: string;
+}
+
+interface OptimizeResponse {
+    optimized_code: string;
+}
 
 export function activate(context: vscode.ExtensionContext) {
     const aiService = new LocalAiService();
@@ -45,6 +54,64 @@ export function activate(context: vscode.ExtensionContext) {
             } else {
                 vscode.window.showErrorMessage('No active editor found');
             }
+        }),
+
+        vscode.commands.registerCommand('ai-code-review.explainLineWithLLM', async (selected: string, fullCode: string) => {
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/explain', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ selected, context: fullCode })
+                });
+
+                const { explanation } = await response.json() as ExplanationResponse;
+
+                if (explanation?.trim()) {
+                    vscode.window.showInformationMessage(`💡 Explanation: ${explanation}`);
+                } else {
+                    vscode.window.showWarningMessage('No explanation returned from LLM.');
+                }
+            } catch (err: any) {
+                vscode.window.showErrorMessage('❌ Failed to fetch explanation from LLM.');
+                console.error(err);
+            }
+        }),
+
+        // ✅ NEW: Optimize selected code using Hugging Face CodeT5
+        vscode.commands.registerCommand('ai-code-review.optimizeWithLLM', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor.');
+                return;
+            }
+
+            const selection = editor.selection;
+            const code = editor.document.getText(selection.isEmpty ? undefined : selection);
+            const language = editor.document.languageId;
+
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/optimize-ml', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, language })
+                });
+
+                const { optimized_code } = await response.json() as OptimizeResponse;
+
+                await editor.edit(editBuilder => {
+                    if (!selection.isEmpty) {
+                        editBuilder.replace(selection, optimized_code);
+                    } else {
+                        const end = new vscode.Position(editor.document.lineCount + 1, 0);
+                        editBuilder.insert(end, `\n\n// Optimized by LLM:\n${optimized_code}`);
+                    }
+                });
+
+                vscode.window.showInformationMessage('✅ Code optimized with LLM.');
+            } catch (err) {
+                vscode.window.showErrorMessage('❌ Optimization failed.');
+                console.error(err);
+            }
         })
     );
 
@@ -63,9 +130,10 @@ export function activate(context: vscode.ExtensionContext) {
         editHistoryService
     );
 
-    // Setup background detection
     setupAutoDetection(diagnosticsProvider, editHistoryService);
 }
+
+// === Helpers ===
 
 function setupAutoDetection(diagnosticsProvider: AiDiagnosticsProvider, editHistoryService: EditHistoryService) {
     vscode.workspace.onDidOpenTextDocument(document => {
@@ -189,7 +257,33 @@ function showAIDetectionDetails(result: any) {
 }
 
 function applyAIFixes(result: any) {
-    vscode.window.showInformationMessage('🛠 Auto-fix feature coming soon!');
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showWarningMessage('No active editor to apply fixes.');
+        return;
+    }
+
+    const fixes = result.issues
+        ?.map((issue: any) => issue.fix)
+        .filter((fix: any) => typeof fix === 'string' && fix.trim().length > 0);
+
+    if (!fixes || fixes.length === 0) {
+        vscode.window.showInformationMessage('No available fixes to apply.');
+        return;
+    }
+
+    const combinedFixes = fixes.map((f: string) => f.trim()).join('\n') + '\n\n';
+
+    editor.edit(editBuilder => {
+        const topPosition = new vscode.Position(0, 0);
+        editBuilder.insert(topPosition, combinedFixes);
+    }).then(success => {
+        if (success) {
+            vscode.window.showInformationMessage('✅ Fixes applied at the top of the file.');
+        } else {
+            vscode.window.showErrorMessage('❌ Failed to apply fixes.');
+        }
+    });
 }
 
 export function deactivate() {}

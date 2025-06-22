@@ -27,8 +27,33 @@ export class AiDiagnosticsProvider implements vscode.Disposable {
         try {
             const result = await this.aiService.analyze(document.getText());
 
-            // ✅ FIX: Extract the array of issues before passing
             const diagnostics = this.createDiagnostics(result.issues, document);
+
+            // ✅ Add fallback offline heuristic for "debugger" statements
+            const lines = document.getText().split('\n');
+            lines.forEach((line, i) => {
+                const index = line.indexOf('debugger');
+                if (index >= 0) {
+                    const range = new vscode.Range(i, index, i, index + 8);
+                    const diagnostic = new vscode.Diagnostic(
+                        range,
+                        "Avoid using 'debugger' in production code.",
+                        vscode.DiagnosticSeverity.Warning
+                    );
+                    diagnostic.source = 'AI Code Review';
+                    diagnostic.code = 'ai-debugger';
+
+                    // Optional fix text embedded in diagnostic metadata
+                    diagnostic.relatedInformation = [
+                        new vscode.DiagnosticRelatedInformation(
+                            new vscode.Location(document.uri, range),
+                            "Suggested fix: remove 'debugger';"
+                        )
+                    ];
+
+                    diagnostics.push(diagnostic);
+                }
+            });
 
             this.collection.set(document.uri, diagnostics);
         } catch (error) {
@@ -55,6 +80,16 @@ export class AiDiagnosticsProvider implements vscode.Disposable {
             diagnostic.source = 'AI Code Review';
             diagnostic.code = issue.category;
 
+            // Optional: attach fix or explanation hint
+            if (issue.fix) {
+                diagnostic.relatedInformation = [
+                    new vscode.DiagnosticRelatedInformation(
+                        new vscode.Location(document.uri, range),
+                        `Suggested fix: ${issue.fix}`
+                    )
+                ];
+            }
+
             return diagnostic;
         });
     }
@@ -70,9 +105,6 @@ export class AiDiagnosticsProvider implements vscode.Disposable {
         }
     }
 
-    /**
-     * Dispose diagnostic collection when cleaning up
-     */
     dispose() {
         this.collection.dispose();
     }

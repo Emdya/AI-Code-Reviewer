@@ -1,20 +1,30 @@
 import * as vscode from 'vscode';
 import fetch from 'node-fetch';
-import { AiService, EditHistoryEntry, AIDetectionResult, AiCodeIssue } from './aiService';
+import {
+    AiService,
+    EditHistoryEntry,
+    AIDetectionResult,
+    AiCodeIssue
+} from './aiService';
+
+interface AnalyzeResponse {
+    issues: AiCodeIssue[];
+    ai_detection?: AIDetectionResult;
+    score?: number;
+    explanation?: string;
+}
 
 export class LocalAiService implements AiService {
     private apiBaseUrl: string;
 
     constructor() {
-        this.apiBaseUrl = 'http://localhost:8000/api/v1'; // Update if hosted elsewhere
+        this.apiBaseUrl = 'http://localhost:8000/api/v1'; // Update if deploying elsewhere
     }
 
-    async analyze(code: string, editHistory?: EditHistoryEntry[]): Promise<{
-        issues: AiCodeIssue[];
-        ai_detection?: AIDetectionResult;
-        score?: number;
-        explanation?: string;
-    }> {
+    async analyze(
+        code: string,
+        editHistory?: EditHistoryEntry[]
+    ): Promise<AnalyzeResponse & { failed?: boolean }> {
         try {
             const response = await fetch(`${this.apiBaseUrl}/analyze`, {
                 method: 'POST',
@@ -25,8 +35,11 @@ export class LocalAiService implements AiService {
                     edit_history: editHistory
                 })
             });
-            const result = await response.json() as any;
-            
+
+            if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+
+            const result = await response.json() as AnalyzeResponse;
+
             return {
                 issues: result.issues || [],
                 ai_detection: result.ai_detection,
@@ -34,13 +47,19 @@ export class LocalAiService implements AiService {
                 explanation: result.explanation
             };
         } catch (error) {
-            vscode.window.showErrorMessage('Failed to analyze code');
+            vscode.window.showErrorMessage('❌ Failed to analyze code.');
             console.error('Analysis error:', error);
-            return { issues: [] }; // Fallback
+            return {
+                issues: [],
+                failed: true
+            };
         }
     }
 
-    async detectAI(code: string, editHistory?: EditHistoryEntry[]): Promise<AIDetectionResult> {
+    async detectAI(
+        code: string,
+        editHistory?: EditHistoryEntry[]
+    ): Promise<AIDetectionResult & { failed?: boolean }> {
         try {
             const response = await fetch(`${this.apiBaseUrl}/detect-ai`, {
                 method: 'POST',
@@ -51,31 +70,31 @@ export class LocalAiService implements AiService {
                     edit_history: editHistory
                 })
             });
+
+            if (!response.ok) throw new Error(`Server responded with ${response.status}`);
             return await response.json() as AIDetectionResult;
         } catch (error) {
-            vscode.window.showErrorMessage('Failed to detect AI-generated code');
+            vscode.window.showErrorMessage('❌ Failed to detect AI-generated code.');
             console.error('AI detection error:', error);
             return {
                 ai_detected: false,
                 ai_confidence: 0,
                 issues: [],
                 suggestions: [],
-                fixes: []
+                fixes: [],
+                failed: true
             };
         }
     }
 
     async explain(issue: AiCodeIssue): Promise<string> {
-        // This could be enhanced to call the backend for detailed explanations
-        return issue.suggestion || issue.message;
+        // You can enhance this to call `/explain` backend endpoint
+        return issue.suggestion || issue.message || 'No explanation available.';
     }
 
     async fix(issue: AiCodeIssue, code: string): Promise<string> {
-        // This could be enhanced to call the backend for automated fixes
-        if (issue.fix) {
-            return issue.fix;
-        }
-        return code; // Return original if no fix available
+        // You can later implement a call to `/fix` backend endpoint
+        return issue.fix ?? code;
     }
 
     async optimize(code: string): Promise<string> {
@@ -88,11 +107,15 @@ export class LocalAiService implements AiService {
                     language: vscode.window.activeTextEditor?.document.languageId || 'javascript'
                 })
             });
+
+            if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+
             const data = await response.json() as { optimized_code?: string };
-            return data.optimized_code || code;
+            return data.optimized_code ?? code;
         } catch (error) {
-            vscode.window.showErrorMessage('Failed to optimize code');
-            return code; // Return original if optimization fails
+            vscode.window.showErrorMessage('❌ Failed to optimize code.');
+            console.error('Optimization error:', error);
+            return code;
         }
     }
 }
