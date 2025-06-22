@@ -1,186 +1,332 @@
-# AI Code Reviewer & Detector
+# AI Code Reviewer
 
-A VS Code extension that not only helps debug code but also detects AI-generated code patterns and provides specific fixes for common AI code issues.
+An advanced AI-powered code review system that detects AI-generated code patterns and provides intelligent suggestions for improvement. The system incorporates multiple AI models including SBERT, spaCy, local LLM transformers, and Wikipedia API for comprehensive analysis.
 
-## Features
+## 🚀 Features
 
-### 🔍 AI-Generated Code Detection
-- **Placeholder Comment Detection**: Identifies incomplete AI-generated code with "TODO:", "FIXME:", "Insert logic here" patterns
-- **Generic Variable Names**: Detects overly generic variable names that are common in AI-generated code
-- **Comment Quality Analysis**: Checks for insufficient or overly generic comments
-- **AI Generation Markers**: Identifies explicit AI generation markers in code
-- **Timing Analysis**: Detects large code blocks added at once (typical of AI generation)
+### Enhanced AI Detection
+- **SBERT Semantic Analysis**: Uses sentence transformers to detect semantic similarity between comments and known AI-generated patterns
+- **spaCy NLP Analysis**: Advanced natural language processing to identify generic language and lack of technical specificity
+- **Local LLM Classification**: Uses Hugging Face transformers for text classification of code comments
+- **Knowledge Base Verification**: Validates code against programming concepts and best practices
+- **Wikipedia Concept Validation**: Verifies technical terms against Wikipedia's knowledge base
+- **Edit History Analysis**: Tracks code changes to detect large blocks added at once (typical of AI generation)
 
-### 🛠️ Code Analysis & Optimization
-- **Multi-language Support**: Python, JavaScript, TypeScript, C++
-- **Static Analysis**: Uses language-specific tools (flake8, ESLint, clang-tidy)
-- **Code Optimization**: Automatic code formatting and optimization
-- **Security Analysis**: Detects potential security issues like eval() usage
+### Traditional Pattern Detection
+- Placeholder comments (TODO, FIXME, etc.)
+- Generic variable names
+- Lack of descriptive comments
+- AI generation markers
+- Overly generic comments
 
-### 📊 Smart Feedback System
-- **Real-time Analysis**: Analyzes code as you type
-- **Interactive Fixes**: Provides specific fixes for detected issues
-- **Confidence Scoring**: Shows AI detection confidence levels
-- **Edit History Tracking**: Monitors code changes for timing analysis
+### Code Analysis
+- Multi-language support (Python, JavaScript, TypeScript, C++)
+- Real-time analysis and suggestions
+- Automated fixes and optimizations
+- Code quality scoring
 
-## Installation
+### VS Code Integration
+- Seamless VS Code extension
+- Real-time diagnostics and hover information
+- Code action suggestions
+- Feedback collection and dashboard
+
+## 🛠️ Installation
 
 ### Backend Setup
-1. Navigate to the Backend directory:
+
+1. **Clone the repository**:
    ```bash
-   cd Backend
+   git clone <repository-url>
+   cd Spurhacks
    ```
 
-2. Install Python dependencies:
+2. **Install Python dependencies**:
    ```bash
+   cd Backend
    pip install -r requirements.txt
    ```
 
-3. Start the backend server:
+3. **Install AI Model Dependencies** (Optional but recommended):
    ```bash
-   python main.py
+   python setup_ai_models.py
    ```
+   
+   This will install:
+   - SBERT (Sentence Transformers)
+   - spaCy with English language model
+   - Hugging Face Transformers
+   - Wikipedia API
+   - scikit-learn
 
-The backend will run on `http://localhost:8000`
+4. **Start the backend server**:
+   ```bash
+   python run_server.py
+   ```
+   
+   The server will be available at `http://localhost:8000`
 
 ### Frontend Setup
-1. Navigate to the Frontend directory:
+
+1. **Install Node.js dependencies**:
    ```bash
    cd Frontend
-   ```
-
-2. Install Node.js dependencies:
-   ```bash
    npm install
    ```
 
-3. Compile the extension:
+2. **Compile the VS Code extension**:
    ```bash
    npm run compile
    ```
 
-4. Press F5 in VS Code to run the extension in development mode
+3. **Install the extension in VS Code**:
+   - Open VS Code
+   - Go to Extensions (Ctrl+Shift+X)
+   - Click "Install from VSIX..."
+   - Select the compiled extension
 
-## Usage
+## 🔧 Configuration
 
-### Automatic Detection
-The extension automatically detects AI-generated code patterns as you type:
-- Large code blocks added at once
-- Placeholder comments
-- Generic variable names
-- Insufficient comments
+### Backend Configuration
 
-### Manual Analysis
-1. **Analyze Current File**: Right-click in the editor and select "Analyze AI-Generated Code"
-2. **Detect AI Code**: Right-click and select "Detect AI-Generated Code" for specific AI detection
-3. **View Dashboard**: Use the command palette to show the feedback dashboard
+The backend can be configured through environment variables:
 
-### AI Detection Results
-When AI-generated code is detected, you'll see:
-- **Confidence Score**: Percentage indicating how likely the code is AI-generated
-- **Specific Issues**: Detailed list of detected problems
-- **Suggestions**: Recommendations for improvement
-- **Automated Fixes**: Code fixes that can be applied
+```bash
+# API Configuration
+API_KEY=your_api_key_here
+ANALYSIS_TIMEOUT=30
 
-## AI Detection Patterns
-
-### 1. Placeholder Comments
-```python
-# TODO: Implement this function
-# Insert logic here
-# Add error handling
+# AI Model Configuration
+ENABLE_SBERT=true
+ENABLE_SPACY=true
+ENABLE_TRANSFORMERS=true
+ENABLE_WIKIPEDIA=true
 ```
 
-### 2. Generic Variable Names
-```javascript
-let x = 10;
-const y = "data";
-var z = [];
+### Frontend Configuration
+
+Configure the VS Code extension in `settings.json`:
+
+```json
+{
+  "aiCodeReviewer.apiUrl": "http://localhost:8000/api/v1",
+  "aiCodeReviewer.enableRealTimeAnalysis": true,
+  "aiCodeReviewer.autoDetectAI": true
+}
 ```
 
-### 3. Insufficient Comments
+## 📊 Enhanced AI Detection Features
+
+### SBERT Semantic Analysis
+- Compares code comments with known AI-generated patterns
+- Uses cosine similarity to detect semantic matches
+- Provides confidence scores for detected patterns
+
+### spaCy NLP Analysis
+- Identifies overly generic language in comments
+- Detects lack of technical terms and specificity
+- Analyzes comment quality and structure
+
+### Local LLM Classification
+- Uses DistilBERT for text classification
+- Analyzes comment patterns for AI generation indicators
+- Provides probability scores for AI-generated content
+
+### Knowledge Base Verification
+- Validates function and class names against programming best practices
+- Checks for meaningful naming conventions
+- Suggests improvements for generic names
+
+### Wikipedia Concept Validation
+- Verifies technical terms against Wikipedia's knowledge base
+- Ensures proper use of programming terminology
+- Identifies potentially incorrect or non-standard terms
+
+## 🧪 Testing
+
+### Test Enhanced AI Detection
+
+Run the comprehensive test suite:
+
+```bash
+cd Backend
+python test_enhanced_ai_detection.py
+```
+
+This will test:
+- SBERT semantic similarity analysis
+- spaCy NLP analysis
+- Local LLM classification
+- Knowledge base verification
+- Wikipedia concept validation
+- Edit history analysis
+
+### Test Basic Functionality
+
+```bash
+cd Backend
+python test_ai_detection.py
+```
+
+### Test API Endpoints
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Analyze code
+curl -X POST http://localhost:8000/api/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"code": "def hello(): return \"world\"", "language": "python"}'
+
+# Detect AI-generated code
+curl -X POST http://localhost:8000/api/v1/detect-ai \
+  -H "Content-Type: application/json" \
+  -d '{"code": "def x(): return y", "language": "python"}'
+```
+
+## 📈 Usage Examples
+
+### Python Code Analysis
+
 ```python
+# AI-generated code (will be detected)
 def process_data(data):
+    # TODO: Implement data processing
+    # This function does something
     result = []
     for item in data:
+        # Add logic here
         result.append(item * 2)
     return result
+
+# Well-written code (low AI detection)
+def calculate_discount_price(original_price: float, discount_percentage: float) -> float:
+    """
+    Calculate the final price after applying a discount.
+    
+    Args:
+        original_price: The original price of the item
+        discount_percentage: The discount percentage (0-100)
+    
+    Returns:
+        The final price after discount
+    
+    Raises:
+        ValueError: If discount_percentage is not between 0 and 100
+    """
+    if not 0 <= discount_percentage <= 100:
+        raise ValueError("Discount percentage must be between 0 and 100")
+    
+    discount_amount = original_price * (discount_percentage / 100)
+    final_price = original_price - discount_amount
+    
+    return round(final_price, 2)
 ```
 
-### 4. AI Generation Markers
-```python
-# Generated by AI
-# AI-generated code
-# Model: GPT-4
-```
+### JavaScript Code Analysis
 
-### 5. Large Code Blocks
-The extension tracks edit history and flags when large blocks of code (>10 lines) are added at once.
+```javascript
+// AI-generated code (will be detected)
+function processUserData(userData) {
+    // This function processes user data
+    let x = [];
+    let y = {};
+    
+    // TODO: Add validation
+    for (let i = 0; i < userData.length; i++) {
+        x.push(userData[i]);
+    }
+    
+    return x;
+}
 
-## Configuration
-
-### Backend API URL
-You can configure the backend API URL in VS Code settings:
-```json
-{
-    "aiCodeReviewer.apiUrl": "http://localhost:8000/api/v1"
+// Well-written code (low AI detection)
+function calculateTotalPrice(items, taxRate) {
+    /**
+     * Calculate the total price including tax for a list of items.
+     * 
+     * @param {Array} items - Array of items with price properties
+     * @param {number} taxRate - Tax rate as a decimal (e.g., 0.08 for 8%)
+     * @returns {number} Total price including tax
+     */
+    const subtotal = items.reduce((sum, item) => sum + item.price, 0);
+    const taxAmount = subtotal * taxRate;
+    return subtotal + taxAmount;
 }
 ```
 
-## API Endpoints
+## 🔍 API Reference
 
-### POST /api/v1/analyze
-Analyzes code for issues including AI detection:
-```json
+### Analyze Code
+```http
+POST /api/v1/analyze
+Content-Type: application/json
+
 {
-    "code": "your code here",
-    "language": "python",
-    "edit_history": []
+  "code": "your code here",
+  "language": "python|javascript|typescript|cpp",
+  "edit_history": [
+    {
+      "type": "insert|delete|replace",
+      "text": "code text",
+      "line": 1,
+      "timestamp": 1234567890
+    }
+  ]
 }
 ```
 
-### POST /api/v1/detect-ai
-Specifically detects AI-generated code patterns:
-```json
+### Detect AI-Generated Code
+```http
+POST /api/v1/detect-ai
+Content-Type: application/json
+
 {
-    "code": "your code here",
-    "language": "python",
-    "edit_history": []
+  "code": "your code here",
+  "language": "python|javascript|typescript|cpp",
+  "edit_history": []
 }
 ```
 
-### POST /api/v1/optimize
-Optimizes the given code:
-```json
+### Optimize Code
+```http
+POST /api/v1/optimize
+Content-Type: application/json
+
 {
-    "code": "your code here",
-    "language": "python"
+  "code": "your code here",
+  "language": "python|javascript|typescript|cpp"
 }
 ```
 
-## Supported Languages
+## 🎯 AI Detection Scores
 
-- **Python**: Uses flake8 and AST analysis
-- **JavaScript/TypeScript**: Uses ESLint
-- **C++**: Uses clang-tidy and clang-format
+The enhanced AI detector provides detailed scores from multiple models:
 
-## Contributing
+- **Semantic Score**: SBERT similarity analysis (0-100%)
+- **NLP Score**: spaCy language analysis (0-100%)
+- **LLM Score**: Local transformer classification (0-100%)
+- **Knowledge Score**: Programming concept validation (0-100%)
+- **Wiki Score**: Wikipedia term verification (0-100%)
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
+4. Add tests for new functionality
 5. Submit a pull request
 
-## License
+## 📝 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Roadmap
+## 🙏 Acknowledgments
 
-- [ ] Machine learning-based AI detection
-- [ ] More language support (Java, C#, Go)
-- [ ] Integration with Git history analysis
-- [ ] Custom rule configuration
-- [ ] Team collaboration features
-- [ ] Performance optimization suggestions 
+- [Sentence Transformers](https://www.sbert.net/) for semantic similarity analysis
+- [spaCy](https://spacy.io/) for natural language processing
+- [Hugging Face Transformers](https://huggingface.co/transformers/) for local LLM capabilities
+- [Wikipedia API](https://pypi.org/project/Wikipedia-API/) for concept validation
+- [FastAPI](https://fastapi.tiangolo.com/) for the backend API
+- [VS Code Extension API](https://code.visualstudio.com/api) for the frontend integration 

@@ -28,7 +28,7 @@ except ImportError as e:
     TRANSFORMERS_AVAILABLE = False
     WIKIPEDIA_AVAILABLE = False
 
-class AIGeneratedCodeDetector:
+class EnhancedAIGeneratedCodeDetector:
     def __init__(self):
         self.ai_patterns = {
             'placeholder_comments': [
