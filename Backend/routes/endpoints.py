@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List, Dict
-from Backend.main import get_analyzer
+from dependencies import get_analyzer  # ✅ Fixes circular import if run inside Backend/
 from services.code_analyzer import CodeAnalyzer
+from quantum_similarity import quantum_similarity
 
-router = APIRouter() 
+router = APIRouter()
+
+# ------------------------------
+# ✅ Request/Response Models
+# ------------------------------
 
 class CodeAnalysisRequest(BaseModel):
     code: str
@@ -34,6 +39,21 @@ class AIDetectionResponse(BaseModel):
     suggestions: list
     fixes: list
 
+class QuantumInput(BaseModel):
+    vec1: List[float]
+    vec2: List[float]
+
+class QuantumSimilarityResponse(BaseModel):
+    similarity: float
+
+# ------------------------------
+# ✅ Routes
+# ------------------------------
+
+@router.get("/health")
+async def versioned_health_check():
+    return {"status": "healthy (v1)", "ok": True}
+
 @router.post("/analyze", response_model=CodeAnalysisResponse)
 async def analyze_code(
     request: CodeAnalysisRequest,
@@ -44,10 +64,7 @@ async def analyze_code(
         result = analyzer.analyze(request.code, request.language, request.edit_history)
         return CodeAnalysisResponse(**result)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/detect-ai", response_model=AIDetectionResponse)
 async def detect_ai_generated_code(
@@ -59,10 +76,7 @@ async def detect_ai_generated_code(
         result = analyzer.detect_ai_generated(request.code, request.language, request.edit_history)
         return AIDetectionResponse(**result)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/optimize", response_model=CodeAnalysisResponse)
 async def optimize_code(
@@ -83,7 +97,13 @@ async def optimize_code(
             ai_detection=None
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/quantum-similarity", response_model=QuantumSimilarityResponse)
+async def run_quantum_similarity(data: QuantumInput):
+    """Compute quantum similarity score between two vectors"""
+    try:
+        score = quantum_similarity(data.vec1, data.vec2)
+        return {"similarity": score}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Quantum similarity failed: {str(e)}")

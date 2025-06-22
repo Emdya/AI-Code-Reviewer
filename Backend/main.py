@@ -38,6 +38,7 @@ async def timeout_middleware(request: Request, call_next):
         process_time = time.time() - start_time
         print(f"Request completed in {process_time:.2f}s")
 
+# CORS config
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,18 +47,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global health check (non-versioned)
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "analyzer_ready": True}
 
-# Import and include routes
+# ✅ Import versioned endpoints
 try:
-    from routes import endpoints
+    from routes import endpoints 
     app.include_router(endpoints.router, prefix="/api/v1")
 except ImportError:
     print("Warning: Could not import routes module. API endpoints may not be available.")
     print("Make sure you're running the server using: python run_server.py")
 
+# Entry point
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
