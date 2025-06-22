@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from services.code_analyzer import CodeAnalyzer
+from Backend.services.code_analyzer import CodeAnalyzer
 import asyncio
 import time
 
@@ -26,7 +26,7 @@ async def timeout_middleware(request: Request, call_next):
     start_time = time.time()
     try:
         if request.url.path in ["/api/v1/analyze", "/api/v1/optimize"]:
-            with asyncio.timeout(ANALYSIS_TIMEOUT):
+            async with asyncio.timeout(ANALYSIS_TIMEOUT):
                 return await call_next(request)
         return await call_next(request)
     except asyncio.TimeoutError:
@@ -51,13 +51,13 @@ async def health_check():
     return {"status": "healthy", "analyzer_ready": True}
 
 # Import and include routes
-from routes import endpoints
+from Backend.routes import endpoints
 app.include_router(endpoints.router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "main:app",
+        "Backend.main:app",
         host="0.0.0.0",
         port=8000,
         reload=True,

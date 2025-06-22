@@ -1,10 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional
-from Backend.main import get_analyzer
-from services.code_analyzer import CodeAnalyzer
+from typing import Optional, List
 
+
+from Backend.services.code_analyzer import CodeAnalyzer
+from ..main import get_analyzer
 router = APIRouter()
+
+# ✨ Define Issue model for strong typing + Swagger docs
+class Issue(BaseModel):
+    message: str
+    category: str
+    severity: str
+    range: List[int]  # Assuming range is a list of integers representing line numbers or character positions
 
 class CodeAnalysisRequest(BaseModel):
     code: str
@@ -17,8 +25,10 @@ class CodeAnalysisResponse(BaseModel):
     optimized_code: Optional[str]
     explanation: Optional[str]
     score: Optional[float]
-    message: Optional[str]
-    changes: Optional[dict]
+    message: Optional[str] = None  
+    changes: Optional[dict] = None
+    
+
 
 @router.post("/analyze", response_model=CodeAnalysisResponse)
 async def analyze_code(
@@ -44,6 +54,10 @@ async def optimize_code(
     try:
         result = analyzer.optimize(request.code, request.language)
         return CodeAnalysisResponse(
+            analysis_id=result.get("analysis_id", "N/A"),
+            explanation=result.get("explanation", "Optimization complete."),
+            score=result.get("score", 1.0),
+            message=result.get("message", ""),
             optimized_code=result["optimized_code"],
             message=result["message"],
             changes=result.get("changes", {}),
@@ -54,3 +68,4 @@ async def optimize_code(
             status_code=500,
             detail=str(e)
         )
+    
