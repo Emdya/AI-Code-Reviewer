@@ -1,21 +1,23 @@
 import * as vscode from 'vscode';
 import fetch from 'node-fetch';
 
-
 interface FeedbackData {
     diagnostic: {
         code?: string | number;
         message: string;
     };
     vote: number;
+    timestamp?: string;
+    fileExtension?: string;
+    userId?: string;
 }
 
 export class FeedbackService {
     private apiBaseUrl: string;
-    private context: vscode.ExtensionContext; // Properly declare the property
+    private context: vscode.ExtensionContext;
 
     constructor(context: vscode.ExtensionContext) {
-        this.context = context; // Store the context properly
+        this.context = context;
         const config = vscode.workspace.getConfiguration('aiCodeReviewer');
         this.apiBaseUrl = config.get<string>('apiUrl', 'http://localhost:8000/api/v1');
         this.verifyConnection();
@@ -65,7 +67,9 @@ export class FeedbackService {
         const existingFeedback = this.context.globalState.get<FeedbackData[]>('localFeedback') || [];
         const feedbackWithMetadata = {
             ...data,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            fileExtension: vscode.window.activeTextEditor?.document.languageId || '',
+            userId: vscode.env.machineId || 'anonymous'
         };
 
         this.context.globalState.update('localFeedback', [...existingFeedback, feedbackWithMetadata])
@@ -78,7 +82,7 @@ export class FeedbackService {
 
     public async syncLocalFeedback(): Promise<void> {
         const localFeedback = this.context.globalState.get<FeedbackData[]>('localFeedback') || [];
-        
+
         if (localFeedback.length > 0) {
             try {
                 await Promise.all(localFeedback.map(feedback => this.sendToBackend(feedback)));
@@ -88,5 +92,26 @@ export class FeedbackService {
                 console.error('Failed to sync local feedback:', error);
             }
         }
+    }
+
+    // ✅ NEW METHODS for dashboard.ts
+
+    public async getFeedbackStats(): Promise<{ total: number; positive: number; negative: number }> {
+        const feedback = this.context.globalState.get<FeedbackData[]>('localFeedback') || [];
+        const total = feedback.length;
+        const positive = feedback.filter(f => f.vote > 0).length;
+        const negative = feedback.filter(f => f.vote < 0).length;
+
+        return { total, positive, negative };
+    }
+
+    public async getRecentFeedback(): Promise<FeedbackData[]> {
+        const feedback = this.context.globalState.get<FeedbackData[]>('localFeedback') || [];
+        return feedback.slice(-10).reverse(); // Most recent 10 items
+    }
+
+    public async clearAllFeedback(): Promise<void> {
+        await this.context.globalState.update('localFeedback', []);
+        console.log('All local feedback cleared');
     }
 }

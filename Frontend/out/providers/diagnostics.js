@@ -35,27 +35,37 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiDiagnosticsProvider = void 0;
 const vscode = __importStar(require("vscode"));
 class AiDiagnosticsProvider {
-    constructor(aiService, feedbackService // Make this optional
+    constructor(aiService, feedbackService // Optional for offline/local testing
     ) {
         this.aiService = aiService;
         this.feedbackService = feedbackService;
         this.collection = vscode.languages.createDiagnosticCollection('ai-code-review');
     }
+    /**
+     * Returns diagnostics currently stored for a URI
+     */
     getDiagnostics(uri) {
         return this.collection.get(uri) || [];
     }
+    /**
+     * Triggers code analysis and sets diagnostics for the document
+     */
     refresh(document) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const issues = yield this.aiService.analyze(document.getText());
-                const diagnostics = this.createDiagnostics(issues, document);
+                const result = yield this.aiService.analyze(document.getText());
+                // ✅ FIX: Extract the array of issues before passing
+                const diagnostics = this.createDiagnostics(result.issues, document);
                 this.collection.set(document.uri, diagnostics);
             }
             catch (error) {
-                vscode.window.showErrorMessage(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+                vscode.window.showErrorMessage(`AI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
             }
         });
     }
+    /**
+     * Converts AiCodeIssue[] into VS Code Diagnostic[]
+     */
     createDiagnostics(issues, document) {
         return issues.map(issue => {
             const range = new vscode.Range(document.positionAt(issue.range[0]), document.positionAt(issue.range[1]));
@@ -65,6 +75,9 @@ class AiDiagnosticsProvider {
             return diagnostic;
         });
     }
+    /**
+     * Maps custom severity string to VS Code severity enum
+     */
     getSeverity(severity) {
         switch (severity) {
             case 'error': return vscode.DiagnosticSeverity.Error;
@@ -72,6 +85,9 @@ class AiDiagnosticsProvider {
             default: return vscode.DiagnosticSeverity.Information;
         }
     }
+    /**
+     * Dispose diagnostic collection when cleaning up
+     */
     dispose() {
         this.collection.dispose();
     }

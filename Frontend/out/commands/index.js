@@ -43,7 +43,7 @@ function registerCommands(context, aiService, diagnosticsProvider) {
     ];
 }
 exports.registerCommands = registerCommands;
-function handleAnalyzeCommand(diagnosticsProvider) {
+function analyzeCode(diagnosticsProvider) {
     return __awaiter(this, void 0, void 0, function* () {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
@@ -53,7 +53,7 @@ function handleAnalyzeCommand(diagnosticsProvider) {
         yield diagnosticsProvider.refresh(editor.document);
     });
 }
-function handleExplainCommand(aiService, diagnostic) {
+function explainIssue(aiService, diagnostic) {
     return __awaiter(this, void 0, void 0, function* () {
         const issue = convertDiagnosticToIssue(diagnostic);
         const explanation = yield aiService.explain(issue);
@@ -61,7 +61,7 @@ function handleExplainCommand(aiService, diagnostic) {
         panel.webview.html = getWebviewContent(explanation, diagnostic.message);
     });
 }
-function handleFixCommand(aiService, diagnostic) {
+function fixIssue(aiService, diagnostic) {
     return __awaiter(this, void 0, void 0, function* () {
         const editor = vscode.window.activeTextEditor;
         if (!editor)
@@ -74,7 +74,7 @@ function handleFixCommand(aiService, diagnostic) {
         });
     });
 }
-function handleOptimizeCommand(aiService, diagnostic) {
+function optimizeCode(aiService, diagnostic) {
     return __awaiter(this, void 0, void 0, function* () {
         const editor = vscode.window.activeTextEditor;
         if (!editor)
@@ -110,17 +110,5 @@ function getWebviewContent(explanation, title) {
         <p>${explanation}</p>
     </body>
     </html>`;
-}
-function analyzeCode(diagnosticsProvider) {
-    throw new Error('Function not implemented.');
-}
-function explainIssue(aiService, diagnostic) {
-    throw new Error('Function not implemented.');
-}
-function fixIssue(aiService, diagnostic) {
-    throw new Error('Function not implemented.');
-}
-function optimizeCode(aiService, diagnostic) {
-    throw new Error('Function not implemented.');
 }
 //# sourceMappingURL=index.js.map

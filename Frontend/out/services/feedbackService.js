@@ -31,81 +31,109 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FeedbackService = void 0;
 const vscode = __importStar(require("vscode"));
+const node_fetch_1 = __importDefault(require("node-fetch"));
 class FeedbackService {
     constructor(context) {
         this.context = context;
+        const config = vscode.workspace.getConfiguration('aiCodeReviewer');
+        this.apiBaseUrl = config.get('apiUrl', 'http://localhost:8000/api/v1');
+        this.verifyConnection();
     }
-    logFeedback(data) {
-        var _a;
+    verifyConnection() {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const userId = yield this.getUserId();
-                const record = {
-                    timestamp: new Date().toISOString(),
-                    diagnostic: {
-                        code: data.diagnostic.code,
-                        message: data.diagnostic.message,
-                        range: data.diagnostic.range
-                    },
-                    vote: data.vote,
-                    fileExtension: ((_a = vscode.window.activeTextEditor) === null || _a === void 0 ? void 0 : _a.document.languageId) || 'unknown',
-                    userId,
-                    sessionId: FeedbackService.SESSION_ID
-                };
-                const currentFeedbacks = this.context.globalState.get(FeedbackService.STORAGE_KEY, []);
-                yield this.context.globalState.update(FeedbackService.STORAGE_KEY, [...currentFeedbacks, record]);
+                const response = yield (0, node_fetch_1.default)(`${this.apiBaseUrl}/health`);
+                if (!response.ok) {
+                    vscode.window.showWarningMessage('Backend connection failed - using local feedback storage');
+                }
             }
             catch (error) {
-                console.error('Failed to log feedback:', error);
+                console.error('Backend connection check failed:', error);
             }
         });
     }
-    getFeedbackStats() {
+    logFeedback(data) {
         return __awaiter(this, void 0, void 0, function* () {
-            const feedbacks = this.context.globalState.get(FeedbackService.STORAGE_KEY, []);
-            const now = Date.now();
-            const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-            return {
-                total: feedbacks.length,
-                positive: feedbacks.filter(f => f.vote > 0).length,
-                negative: feedbacks.filter(f => f.vote < 0).length,
-                last30Days: {
-                    total: feedbacks.filter(f => new Date(f.timestamp).getTime() > thirtyDaysAgo).length,
-                    positive: feedbacks.filter(f => f.vote > 0 && new Date(f.timestamp).getTime() > thirtyDaysAgo).length,
-                    negative: feedbacks.filter(f => f.vote < 0 && new Date(f.timestamp).getTime() > thirtyDaysAgo).length
-                }
-            };
+            try {
+                yield this.sendToBackend(data);
+            }
+            catch (error) {
+                console.error('Failed to send feedback to backend:', error);
+                this.storeLocally(data);
+            }
         });
     }
-    getRecentFeedback(limit = 10) {
+    sendToBackend(data) {
         return __awaiter(this, void 0, void 0, function* () {
-            const feedbacks = this.context.globalState.get(FeedbackService.STORAGE_KEY, []);
-            return feedbacks
-                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                .slice(0, limit);
+            const response = yield (0, node_fetch_1.default)(`${this.apiBaseUrl}/feedback`, {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, (process.env.API_KEY ? { 'X-API-Key': process.env.API_KEY } : {})),
+                body: JSON.stringify({
+                    analysis_id: data.diagnostic.code,
+                    vote: data.vote,
+                    comment: data.diagnostic.message,
+                    source: 'vscode-extension'
+                })
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+        });
+    }
+    storeLocally(data) {
+        var _a;
+        const existingFeedback = this.context.globalState.get('localFeedback') || [];
+        const feedbackWithMetadata = Object.assign(Object.assign({}, data), { timestamp: new Date().toISOString(), fileExtension: ((_a = vscode.window.activeTextEditor) === null || _a === void 0 ? void 0 : _a.document.languageId) || '', userId: vscode.env.machineId || 'anonymous' });
+        this.context.globalState.update('localFeedback', [...existingFeedback, feedbackWithMetadata])
+            .then(() => {
+            console.log('Feedback stored locally');
+        }, error => {
+            console.error('Local feedback storage failed:', error);
+        });
+    }
+    syncLocalFeedback() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const localFeedback = this.context.globalState.get('localFeedback') || [];
+            if (localFeedback.length > 0) {
+                try {
+                    yield Promise.all(localFeedback.map(feedback => this.sendToBackend(feedback)));
+                    yield this.context.globalState.update('localFeedback', []);
+                    console.log(`Successfully synced ${localFeedback.length} feedback items`);
+                }
+                catch (error) {
+                    console.error('Failed to sync local feedback:', error);
+                }
+            }
+        });
+    }
+    // ✅ NEW METHODS for dashboard.ts
+    getFeedbackStats() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const feedback = this.context.globalState.get('localFeedback') || [];
+            const total = feedback.length;
+            const positive = feedback.filter(f => f.vote > 0).length;
+            const negative = feedback.filter(f => f.vote < 0).length;
+            return { total, positive, negative };
+        });
+    }
+    getRecentFeedback() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const feedback = this.context.globalState.get('localFeedback') || [];
+            return feedback.slice(-10).reverse(); // Most recent 10 items
         });
     }
     clearAllFeedback() {
         return __awaiter(this, void 0, void 0, function* () {
-            yield this.context.globalState.update(FeedbackService.STORAGE_KEY, []);
-        });
-    }
-    getUserId() {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                const session = yield vscode.authentication.getSession('github', ['user:email'], { createIfNone: false });
-                return (session === null || session === void 0 ? void 0 : session.account.label) || 'anonymous';
-            }
-            catch (_a) {
-                return 'anonymous';
-            }
+            yield this.context.globalState.update('localFeedback', []);
+            console.log('All local feedback cleared');
         });
     }
 }
 exports.FeedbackService = FeedbackService;
-FeedbackService.SESSION_ID = Date.now().toString();
-FeedbackService.STORAGE_KEY = 'ai-code-review-feedbacks';
 //# sourceMappingURL=feedbackService.js.map

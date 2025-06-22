@@ -18,7 +18,7 @@
     "onLanguage:typescript",
     "onLanguage:python"
   ],
-  "main": "./out/src/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "configuration": {
       "title": "AI Code Reviewer",
@@ -85,6 +85,7 @@
     }
   },
   "scripts": {
+    
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",

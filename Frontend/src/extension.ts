@@ -17,31 +17,38 @@ export function activate(context: vscode.ExtensionContext) {
     const codeActionProvider = new AiCodeActionProvider();
     const hoverProvider = new AiHoverProvider(diagnosticsProvider);
 
-    // Register commands - FIXED: Don't use spread operator with void
-    registerCommands(context, aiService, diagnosticsProvider); // This now stands alone
+    // Register commands
+    registerCommands(context, aiService, diagnosticsProvider);
     context.subscriptions.push(
         registerFeedbackCommand(context, feedbackService),
+
         vscode.commands.registerCommand('ai-code-review.showDashboard', () => {
             FeedbackDashboard.show(context, feedbackService);
         }),
+
         vscode.commands.registerCommand('ai-code-review.detectAI', async () => {
             const editor = vscode.window.activeTextEditor;
             if (editor) {
                 const document = editor.document;
                 const code = document.getText();
                 const editHistory = editHistoryService.getEditHistory(document);
-                
+
                 try {
+                    console.log('🚀 Analyzing for AI-generated content...');
                     const result = await aiService.detectAI(code, editHistory);
+                    console.log('✅ Analysis result:', result);
                     showAIDetectionResults(result);
-                } catch (error) {
+                } catch (error: any) {
+                    console.error('❌ Failed to detect AI:', error.message || error);
                     vscode.window.showErrorMessage('Failed to detect AI-generated code');
                 }
+            } else {
+                vscode.window.showErrorMessage('No active editor found');
             }
         })
     );
 
-    // Register providers
+    // Register language features
     context.subscriptions.push(
         vscode.languages.registerCodeActionsProvider(
             { scheme: 'file' },
@@ -56,7 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
         editHistoryService
     );
 
-    // Setup auto-detection
+    // Setup background detection
     setupAutoDetection(diagnosticsProvider, editHistoryService);
 }
 
@@ -69,16 +76,13 @@ function setupAutoDetection(diagnosticsProvider: AiDiagnosticsProvider, editHist
 
     vscode.workspace.onDidChangeTextDocument(event => {
         const document = event.document;
-        const editHistory = editHistoryService.getRecentEdits(document, 3000); // Last 3 seconds
-        
-        // Check for large code blocks that might be AI-generated
+        const editHistory = editHistoryService.getRecentEdits(document, 3000);
         const largeBlocks = editHistoryService.detectLargeCodeBlocks(document);
+
         if (largeBlocks.length > 0) {
-            setTimeout(() => {
-                promptForAIAnalysis(document, editHistory);
-            }, 1000);
+            setTimeout(() => promptForAIAnalysis(document, editHistory), 1000);
         }
-        
+
         if (event.contentChanges.some(change => isLikelyAIGenerated(change.text))) {
             setTimeout(() => diagnosticsProvider.refresh(event.document), 300);
         }
@@ -105,7 +109,7 @@ function promptForAnalysis(document: vscode.TextDocument) {
         'Analyze', 'Ignore'
     ).then(choice => {
         if (choice === 'Analyze') {
-            vscode.commands.executeCommand('ai-code-review.analyze');
+            vscode.commands.executeCommand('ai-code-review.detectAI');
         }
     });
 }
@@ -123,12 +127,10 @@ function promptForAIAnalysis(document: vscode.TextDocument, editHistory: any[]) 
 
 function showAIDetectionResults(result: any) {
     const confidence = Math.round(result.ai_confidence * 100);
-    const message = result.ai_detected 
-        ? `AI-generated code detected with ${confidence}% confidence`
-        : `No AI-generated code detected (${confidence}% confidence)`;
-    
-    const severity = result.ai_detected ? 'warning' : 'info';
-    
+    const message = result.ai_detected
+        ? `⚠️ AI-generated code detected with ${confidence}% confidence`
+        : `✅ No AI-generated code detected (${confidence}% confidence)`;
+
     vscode.window.showInformationMessage(message, 'View Details', 'Apply Fixes').then(choice => {
         if (choice === 'View Details') {
             showAIDetectionDetails(result);
@@ -139,62 +141,55 @@ function showAIDetectionResults(result: any) {
 }
 
 function showAIDetectionDetails(result: any) {
+    const confidence = Math.round(result.ai_confidence * 100);
+
     const panel = vscode.window.createWebviewPanel(
         'aiDetectionDetails',
         'AI Detection Results',
         vscode.ViewColumn.One,
         {}
     );
-    
+
     const html = `
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>AI Detection Results</title>
             <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                .issue { margin: 10px 0; padding: 10px; border-left: 4px solid #ff6b6b; background: #f8f9fa; }
-                .suggestion { margin: 5px 0; color: #495057; }
-                .fix { margin: 5px 0; color: #28a745; font-family: monospace; }
+                body { font-family: Arial, sans-serif; padding: 20px; background: #fefefe; }
+                h2 { margin-bottom: 0; }
+                .issue { padding: 10px; border-left: 4px solid #d9534f; background: #f8f9fa; margin: 10px 0; }
+                .suggestion { color: #6c757d; margin-top: 5px; }
+                .fix { color: #28a745; font-family: monospace; margin-top: 5px; }
             </style>
         </head>
         <body>
-            <h2>AI Detection Results</h2>
+            <h2>AI Detection Summary</h2>
             <p><strong>AI Detected:</strong> ${result.ai_detected ? 'Yes' : 'No'}</p>
-            <p><strong>Confidence:</strong> ${Math.round(result.ai_confidence * 100)}%</p>
-            
-            <h3>Issues Found:</h3>
-            ${result.issues.map((issue: any) => `
+            <p><strong>Confidence:</strong> ${confidence}%</p>
+
+            <h3>Issues:</h3>
+            ${result.issues?.map((issue: any) => `
                 <div class="issue">
                     <strong>${issue.type}:</strong> ${issue.message}
-                    ${issue.suggestion ? `<div class="suggestion">Suggestion: ${issue.suggestion}</div>` : ''}
-                    ${issue.fix ? `<div class="fix">Fix: ${issue.fix}</div>` : ''}
+                    ${issue.suggestion ? `<div class="suggestion">💡 ${issue.suggestion}</div>` : ''}
+                    ${issue.fix ? `<div class="fix">🔧 Fix: ${issue.fix}</div>` : ''}
                 </div>
-            `).join('')}
-            
+            `).join('') || '<p>No issues found.</p>'}
+
             <h3>Suggestions:</h3>
             <ul>
-                ${result.suggestions.map((suggestion: string) => `<li>${suggestion}</li>`).join('')}
+                ${result.suggestions?.map((s: string) => `<li>${s}</li>`).join('') || '<li>No suggestions available.</li>'}
             </ul>
         </body>
         </html>
     `;
-    
+
     panel.webview.html = html;
 }
 
 function applyAIFixes(result: any) {
-    // This would apply the suggested fixes to the current document
-    vscode.window.showInformationMessage('Fix application feature coming soon!');
+    vscode.window.showInformationMessage('🛠 Auto-fix feature coming soon!');
 }
 
 export function deactivate() {}
-
-/* Summary:
-- Bootstraps your extension by wiring together services and providers.
-- Registers UI integrations (hover, diagnostics, code actions).
-- Adds background listeners to proactively detect AI-generated content.
-- Provides interactive prompts to let the user trigger analysis.
- **/
